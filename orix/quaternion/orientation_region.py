@@ -16,6 +16,44 @@
 # You should have received a copy of the GNU General Public License
 # along with orix.  If not, see <http://www.gnu.org/licenses/>.
 
+# The below EMsoft copyright notice is included because the following
+# functionality in this file is derived from EMsoft's source code:
+#  - Determination of whether a Rodrigues vector lies inside the
+#    fundamental zone
+
+# #####################################################################
+# Copyright (c) 2013-2023, Marc De Graef Research Group/Carnegie Mellon
+# University
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   - Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#   - Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in
+#     the documentation and/or other materials provided with the
+#     distribution.
+#   - Neither the names of Marc De Graef, Carnegie Mellon University nor
+#     the names of its contributors may be used to endorse or promote
+#     products derived from this software without specific prior written
+#     permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# ###################################################################
+
 """An orientation region is some subset of the complete space of orientations.
 
 The complete orientation space represents every possible orientation of an
@@ -39,14 +77,23 @@ from __future__ import annotations
 import itertools
 from typing import Tuple
 
+import numba as nb
 import numpy as np
 
 from orix.quaternion import Quaternion
 from orix.quaternion.rotation import Rotation
 from orix.quaternion.symmetry import C1, Symmetry, get_distinguished_points
-from orix.vector import Rodrigues
+from orix.vector import Rodrigues, Vector3d
 
-_EPSILON = 1e-9  # small number to avoid round off problems
+# Constants
+_EPS = 1e-9
+_SQRT3 = np.sqrt(3)
+_ONE_OVER_SQRT2 = 1 / np.sqrt(2)
+_SQRT3_OVER2 = np.sqrt(3) / 2
+_TOL = 1e5
+_TAN_PI_OVER_2N = np.zeros(5, dtype=np.float64)
+_TAN_PI_OVER_2N[1:5] = np.tan(np.pi / (2 * np.array([2, 3, 4, 6])))
+_TAN_PI_OVER_2N = np.insert(_TAN_PI_OVER_2N, 4, 0)
 
 
 def _get_large_cell_normals(s1, s2):
@@ -115,7 +162,7 @@ def get_proper_groups(Gl: Symmetry, Gr: Symmetry) -> Tuple[Symmetry, Symmetry]:
             return Gl.laue_proper_subgroup, Gr.proper_subgroup
         else:
             raise NotImplementedError(
-                "Both groups are improper, " "and do not contain inversion."
+                "Both groups are improper, and do not contain inversion"
             )
 
 
@@ -188,20 +235,19 @@ class OrientationRegion(Rotation):
         """
         c = Quaternion(self).dot_outer(Quaternion(other))
         inside = np.logical_or(
-            np.all(np.greater_equal(c, -_EPSILON), axis=0),
-            np.all(np.less_equal(c, +_EPSILON), axis=0),
+            np.all(np.greater_equal(c, -_EPS), axis=0),
+            np.all(np.less_equal(c, +_EPS), axis=0),
         )
         return inside
 
     def get_plot_data(self) -> Rotation:
         """Suitable Rotations for the construction of a wireframe."""
-        from orix.vector import Vector3d
 
         # Get a grid of vector directions
-        theta = np.linspace(0, 2 * np.pi - _EPSILON, 361)
-        rho = np.linspace(0, np.pi - _EPSILON, 181)
-        theta, rho = np.meshgrid(theta, rho)
-        g = Vector3d.from_polar(rho, theta)
+        azimuth = np.linspace(0, 2 * np.pi - _EPS, 361)
+        polar = np.linspace(0, np.pi - _EPS, 181)
+        aa, pp = np.meshgrid(azimuth, polar)
+        g = Vector3d.from_polar(aa, pp)
 
         # Get the cell vector normal norms
         n = Rodrigues.from_rotation(self).norm[:, np.newaxis, np.newaxis]
@@ -219,3 +265,175 @@ class OrientationRegion(Rotation):
         r = Rotation.from_axes_angles(g.unit, omega)
 
         return r
+
+
+# The following are logical functions to determine whether a Rodrigues
+# vector lies inside a fundamental zone of one of the eleven
+# crystallographic proper point groups. The implementation is based on
+# the one in EMsoft's S0(3) module, which itself is based on the paper
+# by Morawiec and Field (1996), doi: 10.1080/01418619608243708.
+
+
+@nb.njit("bool_(float64[:], int64, int64)", cache=True, fastmath=True)
+def _is_inside_cyclic_fz(ro: np.ndarray, fz_type: int, fz_order: int) -> bool:
+    """Return whether a Rodrigues vector is within the specified
+    cyclic Rodrigues fundamental zone :cite:`morawiec1996rodrigues`.
+
+    The fundamental zone of Cn (n = 2, 3, 4, 6) is the full space
+    bounded by two planes perpendicular to the n-fold axis, each at the
+    distance tan(pi / 2n) from the origin.
+
+    Parameters
+    ----------
+    ro
+        Rodrigues vector components (x, y, z, angle) as 64-bit floats.
+    fz_order
+        Order of the fundamental zone, Cn.
+
+    Returns
+    -------
+    is_inside
+        Whether the vector is inside the specified cyclic Rodrigues
+        fundamental zone.
+    """
+    if ro[3] != np.inf:
+        fz_extent = _TAN_PI_OVER_2N[fz_order - 1]
+        if fz_type == 1 and fz_order == 2:
+            # Is Ry within tan(pi/2n)?
+            is_inside = abs(ro[1] * ro[3]) <= fz_extent
+        else:
+            # Is Rz within tan(pi/2n)?
+            is_inside = abs(ro[2] * ro[3]) <= fz_extent
+    else:
+        if fz_type == 1 and fz_order == 2:
+            is_inside = abs(ro[1]) <= _EPS
+        else:
+            is_inside = abs(ro[2]) <= _EPS
+
+    return is_inside
+
+
+@nb.njit("bool_(float64[:], int64)", cache=True, fastmath=True, nogil=True)
+def _is_inside_dihedral_fz(ro: np.ndarray, fz_order: int) -> bool:
+    """Return whether a Rodrigues vector is within the specified
+    dihedral Rodrigues fundamental zone :cite:`morawiec1996rodrigues`.
+
+    The fundamental zone of Dn (n = 2, 3, 4, 6) is a prism with 2n-sided
+    polygons (at distance tan(pi / 2n) from the origin) as prism bases,
+    and 2n square prism faces at a distance tan(pi / 4) = 1 from the
+    origin. The bases are perpendicular to the n-fold axis and the faces
+    are perpendicular to the 2-fold axes.
+
+    Parameters
+    ----------
+    ro
+        Rodrigues vector components (x, y, z, angle) as 64-bit floats.
+    fz_order
+        Order of the fundamental zone, Dn.
+
+    Returns
+    -------
+    is_inside
+        Whether the vector is inside the specified dihedral Rodrigues
+        fundamental zone.
+    """
+    if ro[3] > np.sqrt(3):
+        is_inside = False
+    else:
+        rx, ry, rz = ro[:3] * ro[3]
+
+        # Is Rz within prism bases, tan(pi / 2n)?
+        cond1 = abs(rz) <= _TAN_PI_OVER_2N[fz_order - 1]
+        is_inside = False
+
+        # fmt: off
+        if cond1:
+            # Are Rx and Ry within the square prism faces?
+            if fz_order == 2:
+                cond2 = (
+                        abs(rx) <= 1.
+                    and abs(rz) <= 1.
+                )
+            elif fz_order == 3:
+                cond2 = (
+                        abs(rx) <= 1.
+                    and abs(_SQRT3_OVER2 * ry + 0.5 * rx) <= 1.
+                    and abs(_SQRT3_OVER2 * ry - 0.5 * rx) <= 1.
+                )
+            elif fz_order == 4:
+                cond2 = (
+                        abs(rx) <= 1.
+                    and abs(ry) <= 1.
+                    and _ONE_OVER_SQRT2 * abs(ry + rx) <= 1.
+                    and _ONE_OVER_SQRT2 * abs(ry - rx) <= 1.
+                )
+            else:  # fz_order == 6
+                cond2 = (
+                        abs(rx) <= 1.
+                    and abs(ry) <= 1.
+                    and abs(0.5 * ry + _SQRT3_OVER2 * rx) <= 1.
+                    and abs(_SQRT3_OVER2 * ry + 0.5 * rx) <= 1.
+                    and abs(_SQRT3_OVER2 * ry - 0.5 * rx) <= 1.
+                    and abs(0.5 * ry - _SQRT3_OVER2 * rx) <= 1.
+                )
+            is_inside = cond2
+        # fmt: on
+
+    return is_inside
+
+
+@nb.njit("bool_(float64[:], bool_)", cache=True, fastmath=True, nogil=True)
+def _is_inside_cubic_fz(ro: np.ndarray, octahedral: bool) -> bool:
+    """Return whether a Rodrigues vector is within the tetrahedral or
+    octahedral Rodrigues fundamental zone :cite:`morawiec1996rodrigues`.
+
+    The tetrahedral fundamental zone is a regular octahedron with faces
+    at distances tan(pi / 6) from the origin which are perpendicular to
+    the 3-fold axes. The octahedral fundamental zone is a truncated cube
+    with six octagonal faces at distances tan(pi / 4) = 1 from the
+    origin and eight triangular faces at distances tan(pi / 6) from the
+    origin.
+
+    Parameters
+    ----------
+    ro
+        Rodrigues vector components (x, y, z, angle) as 64-bit floats.
+    octahedral
+        Whether the vector should be checked for the octahedral symmetry
+        as well as the tetrahedral one. Default is False.
+
+    Returns
+    -------
+    is_inside
+        Whether the vector is inside the tetrahedral or octahedral
+        Rodrigues fundamental zone.
+    """
+    fz_extent = _TAN_PI_OVER_2N[3]
+    ro_axis = np.abs(ro[:3] * ro[3])
+
+    if octahedral:
+        cond1 = np.max(ro_axis) <= fz_extent
+    else:
+        cond1 = True
+
+    cond2 = np.sum(ro_axis) <= 1.0
+
+    return cond1 and cond2
+
+
+@nb.njit("bool_(float64[:], int64, int64)", cache=True, fastmath=True, nogil=True)
+def _is_inside_fz(ro: np.ndarray, fz_type: int, fz_order: int) -> bool:
+    if fz_type == 0:
+        is_inside = True
+    elif fz_type == 1:
+        is_inside = _is_inside_cyclic_fz(ro, fz_type, fz_order)
+    elif fz_type == 2:
+        is_inside = _is_inside_dihedral_fz(ro, fz_order)
+    elif fz_type == 3:  # Tetrahedral symmetry
+        is_inside = _is_inside_cubic_fz(ro, False)
+    elif fz_type == 4:
+        is_inside = _is_inside_cubic_fz(ro, True)
+    else:
+        is_inside = False
+
+    return is_inside

@@ -16,6 +16,42 @@
 # You should have received a copy of the GNU General Public License
 # along with orix.  If not, see <http://www.gnu.org/licenses/>.
 
+# The below EMsoft copyright notice is included because most of the
+# conversions in this file is derived from EMsoft's source code.
+
+# #####################################################################
+# Copyright (c) 2013-2023, Marc De Graef Research Group/Carnegie Mellon
+# University
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   - Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#   - Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in
+#     the documentation and/or other materials provided with the
+#     distribution.
+#   - Neither the names of Marc De Graef, Carnegie Mellon University nor
+#     the names of its contributors may be used to endorse or promote
+#     products derived from this software without specific prior written
+#     permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# ###################################################################
+
 """Conversions of rotations between many common representations from
 :cite:`rowenhorst2015consistent`, accelerated with Numba.
 
@@ -30,8 +66,10 @@ for users.
 import numba as nb
 import numpy as np
 
+EPS = 1e-12
 
-@nb.jit("int64(float64[:])", cache=True, nogil=True, nopython=True)
+
+@nb.njit("int64(float64[:])", cache=True, fastmath=True, nogil=True)
 def get_pyramid_single(xyz: np.ndarray) -> int:
     """Determine to which out of six pyramids in the cube a (x, y, z)
     coordinate belongs.
@@ -67,7 +105,7 @@ def get_pyramid_single(xyz: np.ndarray) -> int:
         return 6
 
 
-@nb.jit("int64[:](float64[:, :])", cache=True, nogil=True, nopython=True)
+@nb.njit("int64[:](float64[:, :])", cache=True, fastmath=True, nogil=True)
 def get_pyramid_2d(xyz: np.ndarray) -> np.ndarray:
     """Determine to which out of six pyramids in the cube a 2D array of
     (x, y, z) coordinates belongs.
@@ -87,9 +125,9 @@ def get_pyramid_2d(xyz: np.ndarray) -> np.ndarray:
     This function is optimized with Numba, so care must be taken with
     array shapes and data types.
     """
-    n_scalars = xyz.shape[0]
-    pyramids = np.zeros(n_scalars, dtype=np.int64)
-    for i in nb.prange(n_scalars):
+    n = xyz.shape[0]
+    pyramids = np.zeros(n, dtype=np.int64)
+    for i in nb.prange(n):
         pyramids[i] = get_pyramid_single(xyz[i])
     return pyramids
 
@@ -98,16 +136,16 @@ def get_pyramid(xyz: np.ndarray) -> np.ndarray:
     """n-dimensional wrapper for get_pyramid_2d, see the docstring of
     that function.
     """
-    n_xyz = np.prod(xyz.shape[:-1])
-    xyz2d = xyz.astype(np.float64).reshape(n_xyz, 3)
-    pyramids = get_pyramid_2d(xyz2d).reshape(n_xyz)
+    n = np.prod(xyz.shape[:-1])
+    xyz2d = xyz.astype(np.float64).reshape(n, 3)
+    pyramids = get_pyramid_2d(xyz2d).reshape(n)
     return pyramids
 
 
-@nb.jit("float64[:](float64[:])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
 def cu2ho_single(cu: np.ndarray) -> np.ndarray:
-    """Conversion from a single set of cubochoric coordinates to
-    un-normalized homochoric coordinates :cite:`singh2016orientation`.
+    """Convert a single set of cubochoric coordinates to un-normalized
+    homochoric coordinates :cite:`singh2016orientation`.
 
     Parameters
     ----------
@@ -183,9 +221,9 @@ def cu2ho_single(cu: np.ndarray) -> np.ndarray:
         return np.roll(ho, -1)
 
 
-@nb.jit("float64[:, :](float64[:, :])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
 def cu2ho_2d(cu: np.ndarray) -> np.ndarray:
-    """Conversion from multiple cubochoric coordinates to un-normalized
+    """Convert multiple cubochoric coordinates to un-normalized
     homochoric coordinates :cite:`singh2016orientation`.
 
     Parameters
@@ -213,15 +251,15 @@ def cu2ho(cu: np.ndarray) -> np.ndarray:
     """N-dimensional wrapper for cu2ho_2d, see the docstring of that
     function.
     """
-    n_cu = np.prod(cu.shape[:-1])
-    cu2d = cu.astype(np.float64).reshape(n_cu, 3)
+    n = np.prod(cu.shape[:-1])
+    cu2d = cu.astype(np.float64).reshape(n, 3)
     ho = cu2ho_2d(cu2d).reshape(cu.shape)
     return ho
 
 
-@nb.jit("float64[:](float64[:])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
 def ho2ax_single(ho: np.ndarray) -> np.ndarray:
-    """Conversion from a single set of homochoric coordinates to an
+    """Convert a single set of homochoric coordinates to an
     un-normalized axis-angle pair :cite:`rowenhorst2015consistent`.
 
     Parameters
@@ -239,7 +277,7 @@ def ho2ax_single(ho: np.ndarray) -> np.ndarray:
     This function is optimized with Numba, so care must be taken with
     array shapes and data types.
     """
-    # Constants stolen directly from EMsoft
+    # Constants from EMsoft
     # fmt: off
     fit_parameters = np.array([
          0.9999999999999968,     -0.49999999999986866,     -0.025000000000632055,
@@ -259,7 +297,7 @@ def ho2ax_single(ho: np.ndarray) -> np.ndarray:
         hom = ho_magnitude
         s = fit_parameters[0] + fit_parameters[1] * hom
         for i in nb.prange(2, 21):
-            hom = hom * ho_magnitude
+            hom *= ho_magnitude
             s = s + fit_parameters[i] * hom
         hon = ho / np.sqrt(ho_magnitude)
         s = 2 * np.arccos(s)
@@ -270,9 +308,9 @@ def ho2ax_single(ho: np.ndarray) -> np.ndarray:
     return ax
 
 
-@nb.jit("float64[:, :](float64[:, :])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
 def ho2ax_2d(ho: np.ndarray) -> np.ndarray:
-    """Conversion from multiple homochoric coordinates to un-normalized
+    """Convert multiple homochoric coordinates to un-normalized
     axis-angle pairs :cite:`rowenhorst2015consistent`.
 
     Parameters
@@ -290,9 +328,9 @@ def ho2ax_2d(ho: np.ndarray) -> np.ndarray:
     This function is optimized with Numba, so care must be taken with
     array shapes and data types.
     """
-    n_vectors = ho.shape[0]
-    ax = np.zeros((n_vectors, 4), dtype=np.float64)
-    for i in nb.prange(n_vectors):
+    n = ho.shape[0]
+    ax = np.zeros((n, 4), dtype=np.float64)
+    for i in nb.prange(n):
         ax[i] = ho2ax_single(ho[i])
     return ax
 
@@ -301,16 +339,16 @@ def ho2ax(ho: np.ndarray) -> np.ndarray:
     """N-dimensional wrapper for ho2ax_2d, see the docstring of that
     function.
     """
-    n_ho = np.prod(ho.shape[:-1])
-    ho2d = ho.astype(np.float64).reshape(n_ho, 3)
+    n = np.prod(ho.shape[:-1])
+    ho2d = ho.astype(np.float64).reshape(n, 3)
     ho = ho2ax_2d(ho2d).reshape(ho.shape[:-1] + (4,))
     return ho
 
 
-@nb.jit("float64[:](float64[:])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
 def ax2ro_single(ax: np.ndarray) -> np.ndarray:
-    """Conversion from a single angle-axis pair to an un-normalized
-    Rodrigues vector :cite:`rowenhorst2015consistent`.
+    """Convert a single angle-axis pair to an un-normalized Rodrigues
+    vector :cite:`rowenhorst2015consistent`.
 
     Parameters
     ----------
@@ -341,10 +379,10 @@ def ax2ro_single(ax: np.ndarray) -> np.ndarray:
     return ro
 
 
-@nb.jit("float64[:, :](float64[:, :])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
 def ax2ro_2d(ax: np.ndarray) -> np.ndarray:
-    """Conversion from multiple axis-angle pairs to un-normalized
-    Rodrigues vectors :cite:`rowenhorst2015consistent`.
+    """Convert multiple axis-angle pairs to un-normalized Rodrigues
+    vectors :cite:`rowenhorst2015consistent`.
 
     Parameters
     ----------
@@ -371,16 +409,16 @@ def ax2ro(ax: np.ndarray) -> np.ndarray:
     """N-dimensional wrapper for ax2ro_2d, see the docstring of that
     function.
     """
-    n_ax = np.prod(ax.shape[:-1])
-    ax2d = ax.astype(np.float64).reshape(n_ax, 4)
+    n = np.prod(ax.shape[:-1])
+    ax2d = ax.astype(np.float64).reshape(n, 4)
     ro = ax2ro_2d(ax2d).reshape(ax.shape)
     return ro
 
 
-@nb.jit("float64[:](float64[:])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
 def ro2ax_single(ro: np.ndarray) -> np.ndarray:
-    """Conversion from a single Rodrigues vector to an un-normalized
-    axis-angle pair :cite:`rowenhorst2015consistent`.
+    """Convert a single Rodrigues vector to an un-normalized axis-angle
+    pair :cite:`rowenhorst2015consistent`.
 
     Parameters
     ----------
@@ -406,10 +444,10 @@ def ro2ax_single(ro: np.ndarray) -> np.ndarray:
         return np.append(ro[:3] / norm, 2 * np.arctan(ro[3]))
 
 
-@nb.jit("float64[:, :](float64[:, :])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
 def ro2ax_2d(ro: np.ndarray) -> np.ndarray:
-    """Conversion from multiple Rodrigues vectors to un-normalized
-    axis-angle pairs :cite:`rowenhorst2015consistent`.
+    """Convert multiple Rodrigues vectors to un-normalized axis-angle
+    pairs :cite:`rowenhorst2015consistent`.
 
     Parameters
     ----------
@@ -426,9 +464,9 @@ def ro2ax_2d(ro: np.ndarray) -> np.ndarray:
     This function is optimized with Numba, so care must be taken with
     array shapes and data types.
     """
-    n_vectors = ro.shape[0]
-    ax = np.zeros((n_vectors, 4), dtype=np.float64)
-    for i in nb.prange(n_vectors):
+    n = ro.shape[0]
+    ax = np.zeros((n, 4), dtype=np.float64)
+    for i in nb.prange(n):
         ax[i] = ro2ax_single(ro[i])
     return ax
 
@@ -437,16 +475,16 @@ def ro2ax(ro: np.ndarray) -> np.ndarray:
     """N-dimensional wrapper for ro2ax_2d, see the docstring of that
     function.
     """
-    n_ro = np.prod(ro.shape[:-1])
-    ro2d = ro.astype(np.float64).reshape(n_ro, 4)
+    n = np.prod(ro.shape[:-1])
+    ro2d = ro.astype(np.float64).reshape(n, 4)
     ax = ro2ax_2d(ro2d).reshape(ro.shape)
     return ax
 
 
-@nb.jit("float64[:](float64[:])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
 def ax2qu_single(ax: np.ndarray) -> np.ndarray:
-    """Conversion from a single axis-angle pair to an un-normalized
-    quaternion :cite:`rowenhorst2015consistent`.
+    """Convert a single axis-angle pair to an un-normalized quaternion
+    :cite:`rowenhorst2015consistent`.
 
     Parameters
     ----------
@@ -471,10 +509,10 @@ def ax2qu_single(ax: np.ndarray) -> np.ndarray:
         return np.append(c, ax[:3] * s)
 
 
-@nb.jit("float64[:, :](float64[:, :])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
 def ax2qu_2d(ax: np.ndarray) -> np.ndarray:
-    """Conversion from multiple axis-angle pairs to un-normalized
-    quaternions :cite:`rowenhorst2015consistent`.
+    """Convert multiple axis-angle pairs to un-normalized quaternions
+    :cite:`rowenhorst2015consistent`.
 
     Parameters
     ----------
@@ -491,9 +529,9 @@ def ax2qu_2d(ax: np.ndarray) -> np.ndarray:
     This function is optimized with Numba, so care must be taken with
     array shapes and data types.
     """
-    n_vectors = ax.shape[0]
-    qu = np.zeros((n_vectors, 4), dtype=np.float64)
-    for i in nb.prange(n_vectors):
+    n = ax.shape[0]
+    qu = np.zeros((n, 4), dtype=np.float64)
+    for i in nb.prange(n):
         qu[i] = ax2qu_single(ax[i])
     return qu
 
@@ -502,15 +540,76 @@ def ax2qu(ax: np.ndarray) -> np.ndarray:
     """N-dimensional wrapper for ax2qu_2d, see the docstring of that
     function.
     """
-    n_ax = np.prod(ax.shape[:-1])
-    ax2d = ax.astype(np.float64).reshape(n_ax, 4)
+    n = np.prod(ax.shape[:-1])
+    ax2d = ax.astype(np.float64).reshape(n, 4)
     qu = ax2qu_2d(ax2d).reshape(ax.shape)
     return qu
 
 
-@nb.jit("float64[:](float64[:])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
+def ro2qu_single(ro: np.ndarray) -> np.ndarray:
+    """Convert a single Rodrigues vector to an un-normalized quaternion
+    :cite:`rowenhorst2015consistent`.
+
+    Parameters
+    ----------
+    ro
+        1D array of (x, y, z, angle) as 64-bit floats.
+
+    Returns
+    -------
+    qu
+        1D quaternion (a, b, c, d) as 64-bit floats.
+
+    Notes
+    -----
+    This function is optimized with Numba, so care must be taken with
+    array shapes and data types.
+    """
+    qu = ax2qu_single(ro2ax_single(ro))
+    return qu
+
+
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
+def ro2qu_2d(ro: np.ndarray) -> np.ndarray:
+    """Convert multiple Rodrigues vectors to un-normalized quaternions
+    :cite:`rowenhorst2015consistent`.
+
+    Parameters
+    ----------
+    ro
+        2D array of n (x, y, z, angle) as 64-bit floats.
+
+    Returns
+    -------
+    qu
+        2D array of n (a, b, c, d) as 64-bit floats.
+
+    Notes
+    -----
+    This function is optimized with Numba, so care must be taken with
+    array shapes and data types.
+    """
+    n = ro.shape[0]
+    qu = np.zeros((n, 4), dtype=np.float64)
+    for i in nb.prange(n):
+        qu[i] = ro2qu_single(ro[i])
+    return qu
+
+
+def ro2qu(ro: np.ndarray) -> np.ndarray:
+    """N-dimensional wrapper for ro2qu_2d, see the docstring of that
+    function.
+    """
+    n = np.prod(ro.shape[:-1])
+    ro2d = ro.astype(np.float64).reshape(n, 4)
+    qu = ro2qu_2d(ro2d).reshape(ro.shape)
+    return qu
+
+
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
 def ho2ro_single(ho: np.ndarray) -> np.ndarray:
-    """Conversion from a single set of homochoric coordinates to an
+    """Convert a single set of homochoric coordinates to an
     un-normalized Rodrigues vector :cite:`rowenhorst2015consistent`.
 
     Parameters
@@ -531,9 +630,9 @@ def ho2ro_single(ho: np.ndarray) -> np.ndarray:
     return ax2ro_single(ho2ax_single(ho))
 
 
-@nb.jit("float64[:, :](float64[:, :])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
 def ho2ro_2d(ho: np.ndarray) -> np.ndarray:
-    """Conversion from multiple homochoric coordinates to un-normalized
+    """Convert multiple homochoric coordinates to un-normalized
     Rodrigues vectors :cite:`rowenhorst2015consistent`.
 
     Parameters
@@ -551,9 +650,9 @@ def ho2ro_2d(ho: np.ndarray) -> np.ndarray:
     This function is optimized with Numba, so care must be taken with
     array shapes and data types.
     """
-    n_vectors = ho.shape[0]
-    ro = np.zeros((n_vectors, 4), dtype=np.float64)
-    for i in nb.prange(n_vectors):
+    n = ho.shape[0]
+    ro = np.zeros((n, 4), dtype=np.float64)
+    for i in nb.prange(n):
         ro[i] = ho2ro_single(ho[i])
     return ro
 
@@ -562,15 +661,15 @@ def ho2ro(ho: np.ndarray) -> np.ndarray:
     """N-dimensional wrapper for ho2ro_2d, see the docstring of that
     function.
     """
-    n_ho = np.prod(ho.shape[:-1])
-    ho2d = ho.astype(np.float64).reshape(n_ho, 3)
+    n = np.prod(ho.shape[:-1])
+    ho2d = ho.astype(np.float64).reshape(n, 3)
     ro = ho2ro_2d(ho2d).reshape(ho.shape[:-1] + (4,))
     return ro
 
 
-@nb.jit("float64[:](float64[:])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
 def cu2ro_single(cu: np.ndarray) -> np.ndarray:
-    """Conversion from a single set of cubochoric coordinates to an
+    """Convert a single set of cubochoric coordinates to an
     un-normalized Rodrigues vector :cite:`rowenhorst2015consistent`.
 
     Parameters
@@ -594,9 +693,9 @@ def cu2ro_single(cu: np.ndarray) -> np.ndarray:
         return ho2ro_single(cu2ho_single(cu))
 
 
-@nb.jit("float64[:, :](float64[:, :])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
 def cu2ro_2d(cu: np.ndarray) -> np.ndarray:
-    """Conversion from multiple cubochoric coordinates to un-normalized
+    """Convert multiple cubochoric coordinates to un-normalized
     Rodrigues vectors :cite:`rowenhorst2015consistent`.
 
     Parameters
@@ -614,9 +713,9 @@ def cu2ro_2d(cu: np.ndarray) -> np.ndarray:
     This function is optimized with Numba, so care must be taken with
     array shapes and data types.
     """
-    n_vectors = cu.shape[0]
-    ro = np.zeros((n_vectors, 4), dtype=np.float64)
-    for i in nb.prange(n_vectors):
+    n = cu.shape[0]
+    ro = np.zeros((n, 4), dtype=np.float64)
+    for i in nb.prange(n):
         ro[i] = cu2ro_single(cu[i])
     return ro
 
@@ -625,16 +724,16 @@ def cu2ro(cu: np.ndarray) -> np.ndarray:
     """N-dimensional wrapper for cu2ro_2d, see the docstring of that
     function.
     """
-    n_cu = np.prod(cu.shape[:-1])
-    cu2d = cu.astype(np.float64).reshape(n_cu, 3)
+    n = np.prod(cu.shape[:-1])
+    cu2d = cu.astype(np.float64).reshape(n, 3)
     ro = cu2ro_2d(cu2d).reshape(cu.shape[:-1] + (4,))
     return ro
 
 
-@nb.jit("float64[:](float64[:])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
 def eu2qu_single(eu: np.ndarray) -> np.ndarray:
-    """Convert three Euler angles (alpha, beta, gamma) to a unit
-    quaternion.
+    """Convert three Euler angles (alpha, beta, gamma) to an
+    un-normalized quaternion :cite:`rowenhorst2015consistent`.
 
     Parameters
     ----------
@@ -645,7 +744,7 @@ def eu2qu_single(eu: np.ndarray) -> np.ndarray:
     Returns
     -------
     qu
-        1D unit quaternion (a, b, c, d) as 64-bit floats.
+        1D quaternion (a, b, c, d) as 64-bit floats.
 
     Notes
     -----
@@ -671,10 +770,10 @@ def eu2qu_single(eu: np.ndarray) -> np.ndarray:
     return qu
 
 
-@nb.jit("float64[:, :](float64[:, :])", cache=True, nogil=True, nopython=True)
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
 def eu2qu_2d(eu: np.ndarray) -> np.ndarray:
-    """Conversion from multiple Euler angles (alpha, beta, gamma) to unit
-    quaternions
+    """Convert multiple Euler angles (alpha, beta, gamma) to
+    un-normalized quaternions :cite:`rowenhorst2015consistent`.
 
     Parameters
     ----------
@@ -684,16 +783,16 @@ def eu2qu_2d(eu: np.ndarray) -> np.ndarray:
     Returns
     -------
     qu
-        2D array of n (q0, q1, q2, q3) quaternions as 64-bit floats.
+        2D array of n (a, b, c, d) quaternions as 64-bit floats.
 
     Notes
     -----
     This function is optimized with Numba, so care must be taken with
     array shapes and data types.
     """
-    n_vectors = eu.shape[0]
-    qu = np.zeros((n_vectors, 4), dtype=np.float64)
-    for i in nb.prange(n_vectors):
+    n = eu.shape[0]
+    qu = np.zeros((n, 4), dtype=np.float64)
+    for i in nb.prange(n):
         qu[i] = eu2qu_single(eu[i])
     return qu
 
@@ -702,7 +801,94 @@ def eu2qu(eu: np.ndarray) -> np.ndarray:
     """N-dimensional wrapper for eu2qu_2d, see the docstring of that
     function.
     """
-    n_eu = np.prod(eu.shape[:-1])
-    eu2d = eu.astype(np.float64).reshape(n_eu, 3)
+    n = np.prod(eu.shape[:-1])
+    eu2d = eu.astype(np.float64).reshape(n, 3)
     qu = eu2qu_2d(eu2d).reshape(eu.shape[:-1] + (4,))
     return qu
+
+
+@nb.njit("float64[:](float64[:])", cache=True, fastmath=True, nogil=True)
+def qu2ro_single(qu: np.ndarray) -> np.ndarray:
+    """Convert one quaternion to a Rodrigues vector
+    :cite:`rowenhorst2015consistent`.
+
+    Parameters
+    ----------
+    qu
+        1D array of (a, b, c, d) as 64-bit floats.
+
+    Returns
+    -------
+    ro
+        1D array of (x, y, z, angle) as 64-bit floats.
+
+    Notes
+    -----
+    Uses Eqs. A.24 in :cite:`rowenhorst2015consistent`.
+
+    This function is optimized with Numba, so care must be taken with
+    array shapes and data types.
+    """
+    ro = np.zeros(4, dtype=np.float64)
+
+    if qu[0] < EPS:
+        ro[3] = np.inf
+    for i in nb.prange(3):
+        ro[i] = qu[i + 1]
+    else:
+        mag = 0.0
+        for i in nb.prange(3):
+            mag += qu[i + 1] ** 2
+        if mag < EPS:
+            ro[0] = 0.0
+            ro[1] = 0.0
+            ro[2] = -1.0
+            ro[3] = 0.0
+        else:
+            mag = 1.0 / np.sqrt(mag)
+            q0 = qu[0]
+            if q0 > 1.0:
+                q0 = 1.0 - EPS
+            if q0 < -1.0:
+                q0 - 1.0 + EPS
+            ro[3] = np.tan(np.arccos(q0))
+            for i in range(3):
+                ro[i] = qu[i + 1] * mag
+    return ro
+
+
+@nb.njit("float64[:, :](float64[:, :])", cache=True, fastmath=True, nogil=True)
+def qu2ro_2d(qu: np.ndarray) -> np.ndarray:
+    """Convert multiple quaternions to Rodrigues vectors
+    :cite:`rowenhorst2015consistent`.
+
+    Parameters
+    ----------
+    qu
+        2D array of n (a, b, c, d) as 64-bit floats.
+
+    Returns
+    -------
+    ro
+        2D array of n (x, y, z, angle) as 64-bit floats.
+
+    Notes
+    -----
+    This function is optimized with Numba, so care must be taken with
+    array shapes and data types.
+    """
+    n = qu.shape[0]
+    ro = np.zeros((n, 4), dtype=np.float64)
+    for i in nb.prange(n):
+        ro[i] = qu2ro_single(qu[i])
+    return ro
+
+
+def qu2ro(qu: np.ndarray) -> np.ndarray:
+    """N-dimensional wrapper for qu2ro_2d, see the docstring of that
+    function.
+    """
+    n = np.prod(qu.shape[:-1])
+    qu2d = qu.astype(np.float64).reshape(n, 4)
+    ro = qu2ro_2d(qu2d).reshape(qu.shape[:-1] + (4,))
+    return ro

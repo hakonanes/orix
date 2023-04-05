@@ -351,6 +351,96 @@ class Symmetry(Rotation):
 
         return rot.flatten()
 
+    @property
+    def _fundamental_zone_type(self) -> Union[int, None]:
+        """Return the type of Rodrigues fundamental zone.
+
+        The types are:
+            - 0: No symmetry
+            - 1: Cyclic symmetry
+            - 2: Dihedral symmetry
+            - 3: Tetrahedral symmetry
+            - 4: Octahedral symmetry
+
+        The type is determined by :attr:`system` and :attr:`name`. If
+        either of these are unknown (e.g. ``None``), type ``None`` is
+        returned.
+
+        Returns
+        -------
+        type
+            Number signifying type of fundamental zone.
+
+        Notes
+        -----
+        The type and order, from :meth:`_fundamental_zone_order`, are
+        used when mapping an orientation to the Rodrigues fundamental
+        zone.
+        """
+        if self.system == "triclinic":
+            return 0
+        elif self.system == "monoclinic":
+            return 1
+        elif self.system == "orthorhombic":
+            return 2
+        elif self.system == "tetragonal":
+            if self.name in ["4", "-4", "4/m"]:
+                return 1
+            else:
+                return 2
+        elif self.system == "trigonal":
+            if self.name in ["3", "-3"]:
+                return 1
+            else:
+                return 2
+        elif self.system == "hexagonal":
+            if self.name in ["6", "-6", "6/m"]:
+                return 1
+            else:
+                return 2
+        elif self.system == "cubic":
+            if self.name in ["23", "m3", "-43m"]:
+                return 3
+            else:
+                return 4
+        else:
+            return None
+
+    @property
+    def _fundamental_zone_order(self) -> Union[int, None]:
+        """Return the order of the Rodrigues fundamental zone.
+
+        The order is determined by :attr:`system`. If this is unknown
+        (e.g. ``None``), order ``None`` is returned.
+
+        Returns
+        -------
+        order
+            Number signifying the order of the fundamental zone.
+
+        Notes
+        -----
+        The order and type, from :meth:`_fundamental_zone_type`, are
+        used when mapping an orientation to the Rodrigues fundamental
+        zone.
+        """
+        if self.system == "triclinic":
+            return 0
+        elif self.system == "monoclinic":
+            return 2
+        elif self.system == "orthorhombic":
+            return 2
+        elif self.system == "tetragonal":
+            return 4
+        elif self.system == "trigonal":
+            return 3
+        elif self.system == "hexagonal":
+            return 6
+        elif self.system == "cubic":
+            return 0
+        else:
+            return None
+
     @classmethod
     def from_generators(cls, *generators: Rotation) -> Symmetry:
         """Create a Symmetry from a minimum list of generating
@@ -406,7 +496,7 @@ class Symmetry(Rotation):
             for a, b in zip(*np.unique(s.axis.data, axis=0, return_counts=True))
         }
 
-    def get_highest_order_axis(self) -> Tuple[Vector3d, np.ndarray]:
+    def get_highest_order_axis(self) -> Tuple[Vector3d, int]:
         axis_orders = self.get_axis_orders()
         if len(axis_orders) == 0:
             return Vector3d.zvector(), np.infty
@@ -417,7 +507,7 @@ class Symmetry(Rotation):
         return axes, highest_order
 
     def fundamental_zone(self) -> Vector3d:
-        from orix.vector import AxAngle, SphericalRegion
+        from orix.vector import SphericalRegion
 
         symmetry = self.antipodal
         symmetry = symmetry[symmetry.angle > 0]
@@ -425,7 +515,7 @@ class Symmetry(Rotation):
         if order > 6:
             return Vector3d.empty()
         axis = Vector3d.zvector().get_nearest(axes, inclusive=True)
-        r = Rotation.from_neo_euler(AxAngle.from_axes_angles(axis, 2 * np.pi / order))
+        r = Rotation.from_axes_angles(axis, 2 * np.pi / order)
 
         diads = symmetry.diads
         nearest_diad = axis.get_nearest(diads)
@@ -442,7 +532,7 @@ class Symmetry(Rotation):
             return sr
         axes, order = inside.get_highest_order_axis()
         axis = axis.get_nearest(axes)
-        r = Rotation.from_neo_euler(AxAngle.from_axes_angles(axis, 2 * np.pi / order))
+        r = Rotation.from_axes_angles(axis, 2 * np.pi / order)
         nearest_diad = next_diad
         n1 = axis.cross(nearest_diad).unit
         n2 = -(r * n1)

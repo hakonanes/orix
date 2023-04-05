@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from itertools import product as iproduct
 from typing import List, Optional, Tuple, Union
 import warnings
@@ -31,7 +32,8 @@ import numpy as np
 from scipy.spatial.transform import Rotation as SciPyRotation
 from tqdm import tqdm
 
-from orix.quaternion.orientation_region import OrientationRegion
+from orix.quaternion._conversions import qu2ro_single, ro2qu_single
+from orix.quaternion.orientation_region import OrientationRegion, _is_inside_fz
 from orix.quaternion.rotation import Rotation
 from orix.quaternion.symmetry import C1, Symmetry, _get_unique_symmetry_elements
 from orix.vector import AxAngle, Miller, NeoEuler, Vector3d
@@ -176,7 +178,8 @@ class Misorientation(Rotation):
         o_inside = self.__class__.identity(self.shape)
         outside = np.ones(self.shape, dtype=bool)
         for gl, gr in symmetry_pairs:
-            o_transformed = gl * self[outside] * gr
+            #            o_transformed = gl * self[outside] * gr
+            o_transformed = gr * self[outside] * gl
             o_inside[outside] = o_transformed
             outside = ~(o_inside < orientation_region)
             if not np.any(outside):
@@ -1208,6 +1211,55 @@ class Orientation(Misorientation):
         )
 
         return euler_in_region
+
+    def reduce(self) -> Orientation:
+        """Return the reduced orientations with the smallest rotation
+        angles.
+
+        Reduction is done by converting the orientations to Rodrigues
+        vectors and finding the symmetrically equivalent vector inside
+        the Rodrigues fundamental zone defined by the proper point group
+        of :attr:`symmetry`.
+
+        Returns
+        -------
+        reduced
+            Reduced orientations.
+
+        Notes
+        -----
+        This procedure is based on the implementation of
+        :cite:`morawiec1996rodrigues` in EMsoft.
+
+        If :attr:`symmetry` is not one of the 11 crystallographic proper
+        point groups, the procedure detailed in section 5.3.1 of
+        :cite:`martineau2020multivariate` is used.
+        """
+        sym = self.symmetry
+        fz_type = sym._fundamental_zone_type
+        fz_order = sym._fundamental_zone_order
+
+        if fz_type is None or fz_order is None:
+            return self.map_into_symmetry_reduced_zone()
+
+        ori_flat = self.flatten()
+        n = ori_flat.size
+        ori_inside = Orientation.identity((n,))
+        ori_inside.symmetry = deepcopy(sym)
+
+        for i in range(n):
+            ori_i = ori_flat[i]
+            for j in range(sym.size):
+                qu_j = (sym[j] * ori_i).data[0]
+                if qu_j[0] <= 0:
+                    qu_j = -qu_j
+                ro = qu2ro_single(qu_j)
+                is_inside = _is_inside_fz(ro, fz_type, fz_order)
+                if is_inside:
+                    ori_inside[i] = ro2qu_single(ro)
+                    break
+
+        return ori_inside.reshape(*self.shape)
 
     def scatter(
         self,

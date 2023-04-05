@@ -100,7 +100,8 @@ class Homochoric(NeoEuler):
 
 
 class Rodrigues(NeoEuler):
-    """In Rodrigues space, straight lines map to rotations about a fixed axis.
+    """In Rodrigues space, straight lines map to rotations about a fixed
+    axis.
 
     The Rodrigues vector representing a rotation with rotation angle
     :math:`\\theta` has magnitude :math:`\\tan\\frac{\\theta}{2}`.
