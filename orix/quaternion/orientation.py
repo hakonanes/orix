@@ -727,7 +727,7 @@ class Orientation(Misorientation):
         O = pg._special_rotation.outer(self)
 
         alpha, beta, gamma = O.to_euler().T
-        gamma = np.mod(gamma, 2 * np.pi / pg._primary_axis_order)
+        gamma = np.mod(gamma, 2 * np.pi / pg.nfold)
 
         # Find the first triplet among the symmetrically equivalent ones
         # inside the fundamental region

@@ -31,6 +31,7 @@ Added
 - The ``random()`` methods of ``Orientation`` and ``Misorientation`` now accept
   ``symmetry``. A ``random()`` method is also added to ``Vector3d`` and ``Miller``, the
   latter accepting a ``phase``.
+- ``Symmetry.nfold`` property returning the order of the rotation axis of highest order.
 
 Changed
 -------

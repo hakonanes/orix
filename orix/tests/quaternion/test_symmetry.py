@@ -925,24 +925,24 @@ class TestEulerFundamentalRegion:
             else:
                 assert not np.allclose(angles, (360, 180, 360))
 
-    def test_primary_axis_order(self):
-        for pg in [C1, C2x, C2y]:
-            assert pg._primary_axis_order == 1
-        for pg in [C2z, D2, T]:
-            assert pg._primary_axis_order == 2
-        for pg in [C3, D3x, D3y, D3]:
-            assert pg._primary_axis_order == 3
+    def test_nfold(self):
+        for pg in [C1, Ci]:
+            assert pg.nfold == 1
+        for pg in [C2x, C2y, C2z, D2]:
+            assert pg.nfold == 2
+        for pg in [C3, D3x, D3y, D3, T]:
+            assert pg.nfold == 3
         for pg in [C4, D4, Oh]:
-            assert pg._primary_axis_order == 4
+            assert pg.nfold == 4
         for pg in [C6, D6]:
-            assert pg._primary_axis_order == 6
+            assert pg.nfold == 6
 
-        unrecognized_symmetry = Symmetry.random(4)
-        assert unrecognized_symmetry._primary_axis_order is None
+        unknown_symmetry = Symmetry.random(4)
+        assert unknown_symmetry.nfold == 1
 
-        # All point groups provide an order
-        for pg in _groups:
-            assert pg._primary_axis_order != 0
+        # Point groups that should provide an order greater than 1
+        for pg in _groups[2:]:
+            assert pg.nfold > 1
 
     def test_special_rotation(self):
         for pg in [C1, C2z, C3, C4, C6]:

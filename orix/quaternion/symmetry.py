@@ -259,33 +259,30 @@ class Symmetry(Rotation):
         return fs
 
     @property
-    def _primary_axis_order(self) -> Union[int, None]:
-        """Return the order of primary rotation axis for the proper
-        subgroup.
-
-        Used in to map Euler angles into the fundamental region in
-        :meth:`~orix.quaternion.Orientation.in_euler_fundamental_region`.
+    def nfold(self) -> int:
+        """Return the order of the rotation axis of highest order.
 
         Returns
         -------
         order
-            ``None`` is returned if the proper subgroup name is not
-            recognized.
+            Order of the n-fold rotation axis.
+
+        Examples
+        --------
+        >>> from orix.quaternion.symmetry import D6, Th
+        >>> D6.nfold
+        6
+        >>> Th.nfold
+        3
         """
-        # TODO: Find this dynamically
-        name = self.proper_subgroup.name
-        if name in ["1", "211", "121"]:
-            return 1
-        elif name in ["112", "222", "23"]:
-            return 2
-        elif name in ["3", "312", "32"]:
-            return 3
-        elif name in ["4", "422", "432"]:
-            return 4
-        elif name in ["6", "622"]:
-            return 6
+        angle = self.angle
+        angle = angle[angle > 0]
+        if angle.size == 0 or not any(np.isclose(np.mod(2 * np.pi, angle), 0)):
+            order = 1
         else:
-            return None
+            order = 2 * np.pi / np.min(angle)
+            order = int(np.around(order))
+        return order
 
     @property
     def _special_rotation(self) -> Rotation:
