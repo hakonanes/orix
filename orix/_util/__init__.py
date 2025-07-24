@@ -17,12 +17,4 @@
 # along with orix. If not, see <http://www.gnu.org/licenses/>.
 #
 
-"""Private utilities for handling color in visualization."""
-
-import matplotlib.colors as mcolors
-
-# All named Matplotlib colors (tableau and xkcd already lower case hex)
-ALL_COLORS = mcolors.TABLEAU_COLORS
-for k, v in {**mcolors.BASE_COLORS, **mcolors.CSS4_COLORS}.items():
-    ALL_COLORS[k] = mcolors.to_hex(v)
-ALL_COLORS.update(mcolors.XKCD_COLORS)
+"""Private utilities used across modules."""
