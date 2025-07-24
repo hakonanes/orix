@@ -1,4 +1,5 @@
-# Copyright 2018-2024 the orix developers
+#
+# Copyright 2018-2025 the orix developers
 #
 # This file is part of orix.
 #
@@ -9,11 +10,12 @@
 #
 # orix is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with orix.  If not, see <http://www.gnu.org/licenses/>.
+# along with orix. If not, see <http://www.gnu.org/licenses/>.
+#
 
 import copy
 from typing import Dict, Optional, Tuple, Union
@@ -21,8 +23,9 @@ from typing import Dict, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 
+from orix.crystal_map._phase import Phase
+from orix.crystal_map._phase_list import ALL_COLORS, PhaseList
 from orix.crystal_map.crystal_map_properties import CrystalMapProperties
-from orix.crystal_map.phase_list import ALL_COLORS, Phase, PhaseList
 from orix.quaternion import Orientation, Rotation
 
 
