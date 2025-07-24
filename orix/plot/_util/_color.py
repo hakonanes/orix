@@ -17,25 +17,12 @@
 # along with orix. If not, see <http://www.gnu.org/licenses/>.
 #
 
-__version__ = "0.14.dev3"
+"""Private utilities for handling color in visualization."""
 
-# Sorted by line contributions (ideally excluding lines in notebook
-# files)
-__credits__ = [
-    "Håkon Wiik Ånes",
-    "Ben Martineau",
-    "Paddy Harrison",
-    "Phillip Crout",
-    "Duncan Johnstone",
-    "Niels Cautaerts",
-    "Viljar Johan Femoen",
-    "Anders Christian Mathisen",
-    "Zhou Xu",
-    "Carter Francis",
-    "Austin Gerlt",
-    "Simon Høgås",
-    "Alessandra da Silva",
-    "Ondrej Lexa",
-    "Eric Prestat",
-    "Alexander Clausen",
-]
+import matplotlib.colors as mcolors
+
+# All named Matplotlib colors (tableau and xkcd already lower case hex)
+ALL_COLORS = mcolors.TABLEAU_COLORS
+for k, v in {**mcolors.BASE_COLORS, **mcolors.CSS4_COLORS}.items():
+    ALL_COLORS[k] = mcolors.to_hex(v)
+ALL_COLORS.update(mcolors.XKCD_COLORS)
