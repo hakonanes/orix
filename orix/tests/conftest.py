@@ -1,5 +1,5 @@
 #
-# Copyright 2019-2025 the orix developers
+# Copyright 2018-2025 the orix developers
 #
 # This file is part of orix.
 #
@@ -23,8 +23,8 @@ import numpy as np
 import pytest
 
 from orix.constants import installed
+from orix.crystal_map._phase_list import PhaseList
 from orix.crystal_map.crystal_map import CrystalMap, create_coordinate_arrays
-from orix.crystal_map.phase_list import PhaseList
 from orix.quaternion.rotation import Rotation
 
 # --------------------------- pytest hooks --------------------------- #
