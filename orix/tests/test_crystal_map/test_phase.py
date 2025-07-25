@@ -21,8 +21,7 @@ from diffpy.structure import Atom, Lattice, Structure, loadStructure
 import numpy as np
 import pytest
 
-from orix.crystal_map._phase import Phase
-from orix.crystal_map._phase_list import _new_structure_matrix_from_alignment
+from orix.crystal_map._phase import Phase, _new_structure_matrix_from_alignment
 from orix.quaternion.symmetry import O, Symmetry
 
 

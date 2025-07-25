@@ -47,5 +47,5 @@ def get_matplotlib_color(identifier: str) -> tuple[str, str]:
         Hex color string.
     """
     hex_value = mcolors.to_hex(identifier)  # Raises if invalid
-    _, name = ALL_COLORS_REVERSE[hex_value]
+    name = ALL_COLORS_REVERSE[hex_value]
     return name, hex_value

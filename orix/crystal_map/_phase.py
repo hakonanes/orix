@@ -174,8 +174,9 @@ class Phase:
         Parameters
         ----------
         value : str
-            A valid color identifier. See
-            :func:`matplotlib.colors.is_color_like`.
+            A valid color identifier recognized by
+            :func:`matplotlib.colors.is_color_like`. If a valid alias is
+            given, e.g. "g", the default name is used, e.g. "green".
         """
         return self._color
 
