@@ -16,13 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # along with orix. If not, see <http://www.gnu.org/licenses/>.
 #
+
+from collections import OrderedDict
+from numbers import Number
+from typing import Callable
+
 from diffpy.structure import Atom, Lattice, Structure
 from h5py import File
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from orix.constants import installed
+from orix.crystal_map._phase import Phase
 from orix.crystal_map._phase_list import PhaseList
 from orix.crystal_map.crystal_map import CrystalMap, create_coordinate_arrays
 from orix.quaternion.rotation import Rotation
@@ -35,14 +40,6 @@ def pytest_sessionstart(session):
 
 
 # -------------------- Control of test selection --------------------- #
-
-skipif_numpy_quaternion_present = pytest.mark.skipif(
-    installed["numpy-quaternion"], reason="numpy-quaternion installed"
-)
-
-skipif_numpy_quaternion_missing = pytest.mark.skipif(
-    not installed["numpy-quaternion"], reason="numpy-quaternion not installed"
-)
 
 
 def pytest_addoption(parser):
@@ -62,6 +59,36 @@ def pytest_runtest_setup(item):
         marker_str = f"--{marker}"
         if marker in item.keywords and not item.config.getoption(marker_str):
             pytest.skip(f"Needs {marker_str} flag to run")
+
+
+# ----------------------------- Fixtures ----------------------------- #
+
+
+@pytest.fixture
+def assert_dictionary_func() -> Callable:
+    def assert_dictionary(input_dict, output_dict) -> None:
+        for k in output_dict.keys():
+            out_val = output_dict[k]
+            in_val = input_dict[k]
+            if isinstance(out_val, (dict, OrderedDict)):
+                assert_dictionary(in_val, out_val)
+            else:
+                if isinstance(out_val, (np.ndarray, Number)):
+                    assert np.allclose(in_val, out_val)
+                elif isinstance(out_val, Rotation):
+                    assert np.allclose(in_val._data, out_val._data)
+                elif isinstance(out_val, Phase):
+                    assert_dictionary(in_val.__dict__, out_val.__dict__)
+                elif isinstance(out_val, PhaseList):
+                    assert_dictionary(in_val._dict, out_val._dict)
+                elif isinstance(out_val, Structure):
+                    assert np.allclose(out_val.xyz, in_val.xyz)
+                    assert str(out_val.element) == str(in_val.element)
+                    assert np.allclose(out_val.occupancy, in_val.occupancy)
+                else:
+                    assert in_val == out_val
+
+    return assert_dictionary
 
 
 # ---------------------------- IO fixtures --------------------------- #
