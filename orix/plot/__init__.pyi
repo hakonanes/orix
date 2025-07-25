@@ -17,7 +17,7 @@
 # along with orix. If not, see <http://www.gnu.org/licenses/>.
 #
 
-from ._util import format_labels
+from ._util.formatting import format_labels
 from .crystal_map_plot import CrystalMapPlot
 from .direction_color_keys import DirectionColorKeyTSL
 from .orientation_color_keys import EulerColorKey, IPFColorKeyTSL
