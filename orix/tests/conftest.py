@@ -76,7 +76,7 @@ def assert_dictionary_func() -> Callable:
                 if isinstance(out_val, (np.ndarray, Number)):
                     assert np.allclose(in_val, out_val)
                 elif isinstance(out_val, Rotation):
-                    assert np.allclose(in_val._data, out_val._data)
+                    assert np.allclose(in_val.to_euler(), out_val.to_euler())
                 elif isinstance(out_val, Phase):
                     assert_dictionary(in_val.__dict__, out_val.__dict__)
                 elif isinstance(out_val, PhaseList):
@@ -1168,8 +1168,6 @@ def phase_list(request):
 @pytest.fixture(
     params=[
         (
-            # Tuple with default values for parameters: map_shape, step_sizes,
-            # and n_rotations_per_point
             (4, 3),  # map_shape
             (1.5, 1.5),  # step_sizes
             1,  # rotations_per_point

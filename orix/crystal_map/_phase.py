@@ -169,12 +169,12 @@ class Phase:
 
     @property
     def color(self) -> str:
-        """Return or set the name of phase color.
+        """Return or set the phase color name.
 
         Parameters
         ----------
         value : str
-            A valid color identifier recognized by
+            A valid color string identifier recognized by
             :func:`matplotlib.colors.is_color_like`. If a valid alias is
             given, e.g. "g", the default name is used, e.g. "green".
         """
@@ -189,7 +189,7 @@ class Phase:
     @property
     def color_rgb(self) -> tuple:
         """Return the phase color as RGB tuple."""
-        return mcolors.to_rgb(self.color)
+        return mcolors.to_rgb(self._color)
 
     @property
     def space_group(self) -> SpaceGroup | None:

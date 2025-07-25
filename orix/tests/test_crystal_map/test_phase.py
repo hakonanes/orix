@@ -27,7 +27,7 @@ from orix.quaternion.symmetry import O, Symmetry
 
 class TestPhase:
     @pytest.mark.parametrize(
-        "name, point_group, space_group, color, color_alias, color_rgb, structure",
+        "name, point_group, space_group, color, color_name, color_rgb, structure",
         [
             (
                 None,
@@ -38,7 +38,7 @@ class TestPhase:
                 (0.121568, 0.466666, 0.705882),
                 Structure(title="Super", lattice=Lattice(1, 1, 1, 90, 90, 90)),
             ),
-            (None, "1", 1, "blue", "b", (0, 0, 1), Structure()),
+            (None, "1", 1, "blue", "blue", (0, 0, 1), Structure()),
             (
                 "al",
                 "43",
@@ -60,7 +60,7 @@ class TestPhase:
         ],
     )
     def test_init_phase(
-        self, name, point_group, space_group, color, color_alias, color_rgb, structure
+        self, name, point_group, space_group, color, color_name, color_rgb, structure
     ):
         p = Phase(
             name=name,
@@ -86,7 +86,7 @@ class TestPhase:
             point_group = point_group.name
         assert p.point_group.name == point_group
 
-        assert p.color == color_alias
+        assert p.color == color_name
         assert np.allclose(p.color_rgb, color_rgb, atol=1e-6)
 
         if structure is not None:
