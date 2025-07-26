@@ -1,4 +1,5 @@
-# Copyright 2018-2024 the orix developers
+#
+# Copyright 2018-2025 the orix developers
 #
 # This file is part of orix.
 #
@@ -9,11 +10,12 @@
 #
 # orix is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with orix.  If not, see <http://www.gnu.org/licenses/>.
+# along with orix. If not, see <http://www.gnu.org/licenses/>.
+#
 
 """Generation of spherical grids in *S2*."""
 
@@ -561,16 +563,16 @@ _sampling_method_registry: Mapping[str, Callable] = {
     "hexagonal": sample_S2_hexagonal_mesh,
     "random": sample_S2_random_mesh,
 }
-sampling_methods: List[str] = []
-_sampling_method_names = set()
+sample_S2_methods: List[str] = []
+_sampling_S2_method_names = set()
 for sampling_name, sampling_method in _sampling_method_registry.items():
-    sampling_methods.append(sampling_name)
+    sample_S2_methods.append(sampling_name)
     _func = (
         sampling_method.func
         if isinstance(sampling_method, partial)
         else sampling_method
     )
-    _sampling_method_names.add(f":func:`orix.sampling.{_func.__name__}`")
+    _sampling_S2_method_names.add(f":func:`orix.sampling.{_func.__name__}`")
 
 _s2_sampling_docstring = (
     """Return unit vectors that sample S2 with a specific angular
@@ -597,8 +599,8 @@ _s2_sampling_docstring = (
     {}
     """
 ).format(
-    ", ".join(map(lambda x: f'``"{x}"``', sampling_methods)),
-    "\n    ".join(_sampling_method_names),
+    ", ".join(map(lambda x: f'``"{x}"``', sample_S2_methods)),
+    "\n    ".join(_sampling_S2_method_names),
 )
 
 
@@ -609,7 +611,7 @@ def sample_S2(
         sampling_method = _sampling_method_registry[method]
     except KeyError:
         raise NotImplementedError(
-            f"Method not implemented. Valid options: {sampling_methods}"
+            f"Method not implemented. Valid options: {sample_S2_methods}"
         )
     return sampling_method(resolution, **kwargs)
 
