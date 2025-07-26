@@ -91,12 +91,23 @@ class Phase:
                 name.structure.copy(),
                 name.color,
             )
-        self.structure = structure if structure is not None else Structure()
-        if name is not None:
-            self.name = name
+
         self.space_group = space_group  # Needs to be set before point group
         self.point_group = point_group
+
         self.color = color if color is not None else "tab:blue"
+
+        if structure is None:
+            pg = self.point_group
+            if pg is not None and pg.system is not None:
+                lat = default_lattice(pg.system)
+            else:
+                lat = Lattice()
+            structure = Structure(lattice=lat)
+        self.structure = structure
+
+        if name is not None:
+            self.name = name
 
     @property
     def structure(self) -> Structure:
@@ -118,20 +129,23 @@ class Phase:
     @structure.setter
     def structure(self, value: Structure) -> None:
         """Set the crystal structure."""
-        if isinstance(value, Structure):
-            # Ensure correct alignment
-            old_matrix = value.lattice.base
-            new_matrix = _new_structure_matrix_from_alignment(old_matrix, x="a", z="c*")
-            value = copy.deepcopy(value)
-            # Ensure atom positions are expressed in the new basis
-            value.placeInLattice(Lattice(base=new_matrix))
-            # Store old lattice for expand_asymmetric_unit
-            self._diffpy_lattice = old_matrix
-            if value.title == "" and hasattr(self, "_structure"):
-                value.title = self.name
-            self._structure = value
-        else:
-            raise ValueError(f"{value} must be a diffpy.structure.Structure object.")
+        if not isinstance(value, Structure):
+            raise ValueError(f"{value} must be a diffpy.structure.Structure")
+
+        # Ensure correct alignment
+        old_matrix = value.lattice.base
+        new_matrix = new_structure_matrix_from_alignment(old_matrix, x="a", z="c*")
+        new_value = value.copy()
+
+        # Ensure atom positions are expressed in the new basis
+        new_value.placeInLattice(Lattice(base=new_matrix))
+
+        # Store old lattice for expand_asymmetric_unit
+        self._diffpy_lattice = old_matrix
+        if new_value.title == "" and hasattr(self, "_structure"):
+            new_value.title = self.name
+
+        self._structure = new_value
 
     @property
     def name(self) -> str:
@@ -192,7 +206,7 @@ class Phase:
             value = GetSpaceGroup(value)
         if not isinstance(value, SpaceGroup) and value is not None:
             raise ValueError(
-                f"'{value}' must be of type {SpaceGroup}, an integer 1-230, or None."
+                f"{value!r} must be of type {SpaceGroup}, an integer 1-230, or None"
             )
         # Overwrites any point group set before
         self._space_group: SpaceGroup | None = value
@@ -227,8 +241,8 @@ class Phase:
                     break
         if not isinstance(value, Symmetry) and value is not None:
             raise ValueError(
-                f"'{value}' must be of type {Symmetry}, the name of a valid point"
-                " group as a string, or None."
+                f"{value!r} must be of type {Symmetry}, the name of a valid point group"
+                " as a string, or None"
             )
         else:
             if self.space_group is not None and value is not None:
@@ -236,8 +250,8 @@ class Phase:
                 if old_point_group_name != value.name:
                     warnings.warn(
                         "Setting space group to 'None', as current space group "
-                        f"'{self.space_group.short_name}' is derived from current point"
-                        f" group '{old_point_group_name}'."
+                        f"{self.space_group.short_name!r} is derived from current point"
+                        f" group {old_point_group_name!r}"
                     )
                     self.space_group = None
             self._point_group = value
@@ -408,7 +422,7 @@ class Phase:
         return expanded_phase
 
 
-def _new_structure_matrix_from_alignment(
+def new_structure_matrix_from_alignment(
     old_matrix: np.ndarray,
     x: str | None = None,
     y: str | None = None,
@@ -465,3 +479,13 @@ def _new_structure_matrix_from_alignment(
     new_matrix = new_vectors.dot(old_matrix.reshape(3, 1)).round(12)
 
     return new_matrix
+
+
+def default_lattice(system: str) -> Lattice:
+    if system in ["triclinic", "monoclinic", "orthorhombic", "tetragonal", "cubic"]:
+        lat = Lattice()
+    elif system in ["trigonal", "hexagonal"]:
+        lat = Lattice(1, 1, 1, 90, 90, 120)
+    else:
+        raise ValueError(f"Unknown crystal system {system!r}")
+    return lat
