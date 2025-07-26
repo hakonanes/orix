@@ -42,59 +42,41 @@ from orix.vector.vector3d import Vector3d
 
 
 class Phase:
-    """Name, symmetry, and color of a phase in a crystallographic map.
+    """Symmetry and unit cell of a phase in a crystallographic map.
 
-    If the first parameter is a :code:`Phase` instance, a copy is made
+    The phase can be crystallographic or non-crystallographic, with the
+    latter not having a crystal structure or symmetry set.
 
     Parameters
     ----------
     name
-        Phase name. Overwrites the name in the ``structure`` object.
-        If this parameter is a :code:`Phase`, a copy is made.
+        Phase name. Overwrites the name in the *structure*. A phase can
+        also be given, in which case a copy is returned and all other
+        parameters are ignored.
     space_group
         Space group describing the symmetry operations resulting from
         associating the point group with a Bravais lattice, according
         to the International Tables of Crystallography. If not given, it
-        is set to ``None``.
+        is set to None.
     point_group
         Point group describing the symmetry operations of the phase's
         crystal structure, according to the International Tables of
-        Crystallography. If not given and ``space_group`` is not given,
-        it set to ``None``. If ``None`` is passed but ``space_group``
-        is not ``None``, it is derived from the space group. If both
-        ``point_group`` and ``space_group`` is not ``None``, the space
-        group needs to be derived from the point group.
+        Crystallography. If neither this or *space_group* is given, it
+        is set to None. If not given but *space_group* is, it is derived
+        from the space group. If both this and *space_group* is given,
+        the space group must to be derived from the point group.
     structure
         Unit cell with atoms and a lattice. If not given, a default
-        :class:`~diffpy.structure.structure.Structure` object is
-        created.
+        :class:`~diffpy.structure.structure.Structure` compatible with
+        the symmetry is used.
     color
-        Phase color. If not given, it is set to ``"tab:blue"`` (first
-        among the default Matplotlib colors).
-
-    Examples
-    --------
-    >>> from diffpy.structure import Atom, Lattice, Structure
-    >>> from orix.crystal_map import Phase
-    >>> p = Phase(
-    ...     name="al",
-    ...     space_group=225,
-    ...     structure=Structure(
-    ...         atoms=[Atom("al", [0, 0, 0])],
-    ...         lattice=Lattice(0.405, 0.405, 0.405, 90, 90, 90)
-    ...     )
-    ... )
-    >>> p
-    <name: al. space group: Fm-3m. point group: m-3m. proper point group: 432. color: tab:blue>
-    >>> p.structure
-    [al   0.000000 0.000000 0.000000 1.0000]
-    >>> p.structure.lattice
-    Lattice(a=0.405, b=0.405, c=0.405, alpha=90, beta=90, gamma=90)
+        Phase color. If not given, it is set to the first default
+        Matplotlib color "tab:blue".
     """
 
     def __init__(
         self,
-        name: str | "Phase" | None = None,
+        name: str | Phase | None = None,
         space_group: int | SpaceGroup | None = None,
         point_group: int | str | Symmetry | None = None,
         structure: Structure | None = None,
@@ -327,19 +309,27 @@ class Phase:
 
     @classmethod
     def from_cif(cls, filename: str | Path) -> Phase:
-        """Return a new phase from a CIF file using
-        :mod:`diffpy.structure`'s CIF file parser.
+        r"""Return a new phase from a Crystallographic Information File
+        (CIF).
 
         Parameters
         ----------
         filename
-            Complete path to CIF file with ".cif" file ending. The phase
-            name is obtained from the file name.
+            Path to the \*.cif. The phase name is obtained from the file
+            name.
 
         Returns
         -------
         phase
             New phase.
+
+        Notes
+        -----
+        The file is read using :mod:`diffpy.structure` 's CIF file
+        parser.
+
+        See https://www.iucr.org/resources/cif for details on the CIF
+        file format.
         """
         path = Path(filename)
         parser = p_cif.P_cif()

@@ -21,7 +21,8 @@ r"""
 Crystal reference frame
 =======================
 
-This exampe shows how the crystal and sample reference frames are aligned in orix.
+This exampe shows how the crystal and sample reference frames are aligned for a
+class:`~orix.crystal_map.Phase`.
 """
 
 from diffpy.structure import Lattice, Structure
