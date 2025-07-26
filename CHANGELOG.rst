@@ -26,6 +26,7 @@ Added
 - Element-wise indexing to :class:`~orix.vector3d.Vector3d` and subclasses, such as
   :class:`~orix.vector3d.Miller`.
 - Explicit support for Python 3.13.
+- Dependency on `lazy-loader`.
 
 Changed
 -------
@@ -36,6 +37,7 @@ Changed
   :class:`~orix.quaternion.Quaternion` (and its subclasses) via ``random()`` now uses a
   Gaussian method as opposed to rejection-based sampling.
   This is faster and uses less memory.
+- Functions and classes are now loaded lazily with `lazy-loader`.
 
 Removed
 -------
