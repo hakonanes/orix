@@ -33,11 +33,11 @@ def register_projections() -> None:
 
     See Also
     --------
-    ~orix.plot.CrystalMapPlot
-    ~orix.plot.InversePoleFigurePlot
-    ~orix.plot.AxAnglePlot
-    ~orix.plot.RodriguesPlot
-    ~orix.plot.StereographicPlot
+    :class:`~orix.plot.CrystalMapPlot`
+    :class:`~orix.plot.InversePoleFigurePlot`
+    :class:`~orix.plot.AxAnglePlot`
+    :class:`~orix.plot.RodriguesPlot`
+    :class:`~orix.plot.StereographicPlot`
 
     Examples
     --------
