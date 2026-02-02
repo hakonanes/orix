@@ -17,10 +17,10 @@
 # along with orix. If not, see <http://www.gnu.org/licenses/>.
 #
 
-"""
-======================
-Select and modify data
-======================
+r"""
+===================================
+Selecting and Indexing Crystal Maps
+===================================
 
 This example shows how to select data in a :class:`~orix.crystal_map.CrystalMap`, obtain
 a new map from parts of the data and modify data inplace.
@@ -36,17 +36,19 @@ There are five ways to select data:
 import matplotlib.pyplot as plt
 import numpy as np
 
-from orix.crystal_map import CrystalMap, Phase
-from orix.plot import register_projections
+import orix.crystal_map as ocm
+import orix.plot as opl
 
-register_projections()  # Register our custom Matplotlib projections
+opl.register_projections()  # Register our custom Matplotlib projections
 
 
-def plot_id(xmaps: CrystalMap | list[CrystalMap], titles: str | list[str]) -> None:
+def plot_id(
+    xmaps: ocm.CrystalMap | list[ocm.CrystalMap], titles: str | list[str]
+) -> None:
     """Convenience function to plot at most four crystal maps showing
     rows, columns and IDs of each map point.
     """
-    if isinstance(xmaps, CrystalMap):
+    if isinstance(xmaps, ocm.CrystalMap):
         xmaps = [xmaps]
         titles = [titles]
     n_xmaps = len(xmaps)
@@ -77,7 +79,7 @@ def plot_id(xmaps: CrystalMap | list[CrystalMap], titles: str | list[str]) -> No
 # having one phase and an identity rotation, and plot the row and column coordinates as
 # well as the map ID of each point into the originally created map
 
-xmap = CrystalMap.empty(shape=(5, 10))
+xmap = ocm.CrystalMap.empty(shape=(5, 10))
 xmap.phases[0].name = "a"
 print(xmap)
 
@@ -99,7 +101,7 @@ print(xmap2[:, 1].id)
 # Select data based on phase(s) (3) after adding a new phase to the phase list and
 # giving some points in the data the new phase ID by modifying the phase IDs inplace
 
-xmap.phases.add(Phase("b"))
+xmap.phases.add(ocm.Phase("b"))
 
 xmap[1, 1].phase_id = 1
 xmap[1:4, 5:9].phase_id = 1
